@@ -10,22 +10,6 @@ from gensim.models.callbacks import CallbackAny2Vec
 from gensim.models.doc2vec import Doc2Vec
 
 
-def pnl_from_positions(candles: pd.DataFrame, positions: pd.Series, commission=0.) -> pd.Series:
-    assert candles.shape[0] == positions.shape[0]
-    assert type(candles.index) is pd.DatetimeIndex
-    assert type(positions.index) is pd.DatetimeIndex
-    pos_changes = abs(positions.diff().fillna(positions)) > 0
-    pos_prices = candles.open.copy()
-    pos_prices[~pos_changes] = pd.NA
-    pos_prices = pos_prices.ffill().fillna(candles.open)
-    comm_charges = pos_changes * commission
-    candle_returns = (candles.close - candles.open) / pos_prices
-    step_returns = (candles.open - candles.close.shift().fillna(candles.open)) / pos_prices.shift().bfill()
-    total_returns = candle_returns * positions + step_returns * positions.shift().fillna(0)
-    pnl = total_returns - comm_charges
-    return pnl
-
-
 # custom callback for doc2vec training
 class EpochLogger(CallbackAny2Vec):
     def __init__(self, documents):
@@ -158,3 +142,15 @@ def split(df):
     # print(y.columns)
     x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, shuffle=False)
     return x_train, x_test, y_train, y_test
+
+def test(model):
+
+    # pnl = PnlCallback(x_test, df_candle, patience=60, name='model_price')
+    es = EarlyStopping(monitor='val_loss', mode='min', min_delta=0.001, verbose=0, patience=60)
+    mc = ModelCheckpoint('model_price.h5', verbose=0, save_best_only=True)  # MLP
+
+    history = model.fit(x=x_train, y=y_train, validation_data=(x_test, y_test), batch_size=32
+                        # ,class_weight=class_weights
+                        , epochs=300, verbose=0, callbacks=[es, mc])  # , shuffle=False)
+
+    model = load_model('model_price.h5')
