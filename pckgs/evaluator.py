@@ -4,30 +4,15 @@ from sklearn.metrics import confusion_matrix
 import seaborn as sb
 import matplotlib.pyplot as plt
 import numpy as np
+from fin_utils.pnl import pnl_from_positions
 
 
 class Evaluator:
 
-    @staticmethod
-    def pnl_from_positions(candles: pd.DataFrame, positions: pd.Series, commission=0.) -> pd.Series:
-        assert candles.shape[0] == positions.shape[0]
-        assert type(candles.index) is pd.DatetimeIndex
-        assert type(positions.index) is pd.DatetimeIndex
-        pos_changes = abs(positions.diff().fillna(positions)) > 0
-        pos_prices = candles.open.copy()
-        pos_prices[~pos_changes] = pd.NA
-        pos_prices = pos_prices.ffill().fillna(candles.open)
-        comm_charges = pos_changes * commission
-        candle_returns = (candles.close - candles.open) / pos_prices
-        step_returns = (candles.open - candles.close.shift().fillna(candles.open)) / pos_prices.shift().bfill()
-        total_returns = candle_returns * positions + step_returns * positions.shift().fillna(0)
-        pnl = total_returns - comm_charges
-        return pnl
-
 
     @staticmethod #return unrealised pnl
     def get_pnl(y_pred, df_candle):
-        pnl = Evaluator.pnl_from_positions(df_candle, y_pred, commission=0.0025)
+        pnl = pnl_from_positions(df_candle, y_pred, commission=0.0025)
         pnl = pnl.cumsum()
         return pnl
 
