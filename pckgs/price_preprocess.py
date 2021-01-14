@@ -6,8 +6,8 @@ from pckgs.helper import timeseries_to_supervised, timeseries_to_supervised2
 from sklearn.preprocessing import MinMaxScaler
 from math import exp
 
-class BitcoinPreprocess:
-    def __init__(self, unit, lag, threshold):
+class PricePreprocess:
+    def __init__(self, lag, threshold, unit=None):
         self.unit = unit
         self.lag = lag
         self.threshold = threshold
@@ -23,8 +23,9 @@ class BitcoinPreprocess:
     def preprocess(self, df):
         df = df.loc[:, ['Close']]
         #resample
-        df = df.resample(self.unit).last()
-        df.Close.fillna(method='ffill', inplace=True)
+        if self.unit is not None:
+            df = df.resample(self.unit).last()
+            df.Close.fillna(method='ffill', inplace=True)
         #percentage change
         df['pChange'] = ((df.Close / df.Close.shift(1)) - 1) * 100
         df.drop(columns=['Close'], inplace=True)

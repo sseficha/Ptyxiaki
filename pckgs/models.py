@@ -1,10 +1,11 @@
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.utils import plot_model
-from tensorflow.keras.layers import Dense, LSTM, Input, Reshape, Conv1D, concatenate, Dropout, Flatten, Conv2D, \
-    MaxPooling2D, MaxPooling1D
+from tensorflow.keras.layers import Dense, LSTM, Input, Reshape, Conv1D, concatenate, Dropout, MaxPooling1D
 from tensorflow.keras.optimizers import Adam, SGD
 from tensorflow.keras import Model
 from tensorflow.keras.regularizers import l1, l2
+from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
+from tensorflow.keras.models import load_model
 
 
 
@@ -47,7 +48,14 @@ def get_model_both_emb():
     # print(model_merged.summary())
     return model_merged
 
-
+def train_model(model, data, name, epochs=200, verbose=0):
+    (x_train, x_test, y_train, y_test) = data
+    es = EarlyStopping(monitor='val_loss', mode='min', min_delta=0.01, verbose=verbose, patience=30)
+    mc = ModelCheckpoint(name, verbose=verbose, save_best_only=True)
+    history = model.fit(x=x_train, y=y_train, validation_data=(x_test, y_test), batch_size=32,
+                        epochs=epochs, verbose=verbose, callbacks=[es, mc])#, shuffle=False)
+    model = load_model(name)
+    return model, history
 
 
 

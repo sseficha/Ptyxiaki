@@ -7,6 +7,7 @@ import numpy as np
 from fin_utils.pnl import pnl_from_positions
 
 
+
 class Evaluator:
 
 
@@ -16,29 +17,35 @@ class Evaluator:
         pnl = pnl.cumsum()
         return pnl
 
+    # @staticmethod get_pnl_plot(y_pred, y_test, df_candle, force=False):
+
+
+    @staticmethod
+    def get_no_exit_positions(y_pred):
+        y_predf = y_pred.copy()
+        if y_predf.iloc[0] == 0:
+            y_predf.iloc[0] = 1
+        for i in range(len(y_predf)):
+            if y_predf.iloc[i] == 0:
+                y_predf.iloc[i] = y_predf.iloc[i - 1]
+        return y_predf
+
     @staticmethod
     def evaluate(y_pred, y_test, df_candle, force=False):
         if force:
-            y_predf = y_pred.copy()
-            if y_predf.iloc[0] == 0:
-                y_predf.iloc[0] = 1
-            for i in range(len(y_predf)):
-                if y_predf.iloc[i] == 0:
-                    y_predf.iloc[i] = y_predf.iloc[i - 1]
-            pnl = Evaluator.get_pnl(y_predf, df_candle)
-        else:
-            pnl = Evaluator.get_pnl(y_pred, df_candle)
+            y_pred = Evaluator.get_no_exit_positions(y_pred)
+        pnl = Evaluator.get_pnl(y_pred, df_candle)
         plt.figure(figsize=(10,12))
+        #pnl
         ax1 = plt.subplot(3,1,1)
         sb.lineplot(x=pnl.index, y=pnl)
+        #close  and positions
         ax2 = plt.subplot(3,1,2)
-        if force:
-            z = pd.concat([df_candle.close, y_predf], axis=1)
-        else:
-            z = pd.concat([df_candle.close, y_pred], axis=1)
+        z = pd.concat([df_candle.close, y_pred], axis=1)
         z.rename(columns={0: 'action'}, inplace=True)
         sb.lineplot(data=z, x=z.index, y='close')
         sb.scatterplot(data=z, x=z.index, y='close', hue='action', s=30, palette={-1:'red', 0:'blue', 1:'green'})
+        #confusion matrix
         ax3 = plt.subplot(3,2,5)
         # confusion matrix
         conf_m = confusion_matrix(y_test.to_numpy(), y_pred.to_numpy())
