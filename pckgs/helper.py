@@ -101,23 +101,23 @@ def min_dist(series):
 
 
 # get dataframe df and return a new dataframe with only the specified timeseries label shifted for specified lags
-def timeseries_to_supervised(df, label, lag=1, goal=None):
-    df_sup = df.copy()
-    df_sup = df_sup.drop([i for i in df_sup.columns if i != label], axis=1)
-    df = pd.DataFrame(df[label])
-    for i in range(1, lag, 1):
-    # for i in range(lag-1, 0, -1):
-        temp = df.shift(i)
-        string = label + '_t-' + str(i)  # changed from t to _t
-        temp = temp.rename(columns={label: string})
-        df_sup = pd.concat([df_sup, temp], axis=1)
-    df_sup = df_sup.rename(columns={label: label + '_t'})  # changed from t to _t
-    # goal
-    if goal is not None:
-        temp = df.shift(-goal)
-        temp = temp.rename(columns={label: 'y'})
-        df_sup = pd.concat([df_sup, temp], axis=1)
-    return df_sup
+# def timeseries_to_supervised(df, label, lag=1, goal=None):
+#     df_sup = df.copy()
+#     df_sup = df_sup.drop([i for i in df_sup.columns if i != label], axis=1)
+#     df = pd.DataFrame(df[label])
+#     for i in range(1, lag, 1):
+#     # for i in range(lag-1, 0, -1):
+#         temp = df.shift(i)
+#         string = label + '_t-' + str(i)  # changed from t to _t
+#         temp = temp.rename(columns={label: string})
+#         df_sup = pd.concat([df_sup, temp], axis=1)
+#     df_sup = df_sup.rename(columns={label: label + '_t'})  # changed from t to _t
+#     # goal
+#     if goal is not None:
+#         temp = df.shift(-goal)
+#         temp = temp.rename(columns={label: 'y'})
+#         df_sup = pd.concat([df_sup, temp], axis=1)
+#     return df_sup
 
 def timeseries_to_supervised2(df, lag):
     shifted_df = df.copy()
@@ -142,15 +142,3 @@ def split(df):
     # print(y.columns)
     x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, shuffle=False)
     return x_train, x_test, y_train, y_test
-
-def test(model):
-
-    # pnl = PnlCallback(x_test, df_candle, patience=60, name='model_price')
-    es = EarlyStopping(monitor='val_loss', mode='min', min_delta=0.001, verbose=0, patience=60)
-    mc = ModelCheckpoint('model_price.h5', verbose=0, save_best_only=True)  # MLP
-
-    history = model.fit(x=x_train, y=y_train, validation_data=(x_test, y_test), batch_size=32
-                        # ,class_weight=class_weights
-                        , epochs=300, verbose=0, callbacks=[es, mc])  # , shuffle=False)
-
-    model = load_model('model_price.h5')

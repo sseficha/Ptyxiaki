@@ -2,7 +2,7 @@ import pandas as pd
 import datetime
 import seaborn as sb
 import matplotlib.pyplot as plt
-from pckgs.helper import timeseries_to_supervised, timeseries_to_supervised2
+from pckgs.helper import timeseries_to_supervised2
 from sklearn.preprocessing import MinMaxScaler
 from math import exp
 
@@ -21,14 +21,14 @@ class PricePreprocess:
             return 'same'
 
     def preprocess(self, df):
-        df = df.loc[:, ['Close']]
+        df = df.loc[:,['close']]
         #resample
         if self.unit is not None:
             df = df.resample(self.unit).last()
-            df.Close.fillna(method='ffill', inplace=True)
+            df.close.fillna(method='ffill', inplace=True)
         #percentage change
-        df['pChange'] = ((df.Close / df.Close.shift(1)) - 1) * 100
-        df.drop(columns=['Close'], inplace=True)
+        df['pChange'] = ((df.close / df.close.shift(1)) - 1) * 100
+        df.drop(columns=['close'], inplace=True)
         #scale
         scaler = MinMaxScaler(feature_range=(-1,1))
         df['pChange_scaled'] = scaler.fit_transform(df['pChange'].values.reshape(-1, 1))

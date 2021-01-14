@@ -35,7 +35,7 @@ class Evaluator:
         if force:
             y_pred = Evaluator.get_no_exit_positions(y_pred)
         pnl = Evaluator.get_pnl(y_pred, df_candle)
-        plt.figure(figsize=(10,12))
+        plt.figure(figsize=(10,8))
         #pnl
         ax1 = plt.subplot(3,1,1)
         sb.lineplot(x=pnl.index, y=pnl)
