@@ -49,9 +49,9 @@ def get_model_both_emb():
 
 def train_model(model, data, name, epochs=200, verbose=0):
     (x_train, x_test, y_train, y_test) = data
-    es = EarlyStopping(monitor='val_loss', mode='min', min_delta=0.001, verbose=verbose, patience=30)
+    es = EarlyStopping(monitor='val_loss', mode='min', min_delta=0.001, verbose=verbose, patience=20)
     mc = ModelCheckpoint(name, verbose=verbose, save_best_only=True)
-    history = model.fit(x=x_train, y=y_train, validation_data=(x_test, y_test), batch_size=32,
+    history = model.fit(x=x_train, y=y_train, validation_data=(x_test, y_test), batch_size=64,
                         epochs=epochs, verbose=verbose, callbacks=[es, mc])#, shuffle=False)
     model = load_model(name)
     return model, history

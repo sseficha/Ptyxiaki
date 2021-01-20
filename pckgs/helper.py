@@ -76,28 +76,6 @@ class PnlCallback(Callback):
             print('Pnl is: ', self.pnl)
 
 
-def min_dist(series):
-    if not series.empty:
-        length = len(series)
-        if length == 1:
-            # return series
-            return series.values
-        else:
-            min_id = 0
-            min_dist = 99999
-            for i in range(length):
-                # vector = series.iloc[i]  # list of features ('vec')
-                vector = series.iloc[i].values
-                dist = 0
-                for j in range(length):
-                    if j != i:
-                        # dist += 1-spatial.distance.cosine(vector, series.iloc[j])
-                        dist += 1 - spatial.distance.cosine(vector, series.iloc[j].values)
-                if dist < min_dist:
-                    min_dist = dist
-                    min_id = i
-            # return series.iloc[min_id]
-            return series.iloc[min_id].values
 
 
 # get dataframe df and return a new dataframe with only the specified timeseries label shifted for specified lags
@@ -128,17 +106,54 @@ def timeseries_to_supervised2(df, lag):
         shifted_df = pd.concat([shifted_df, shifted],axis=1)
     return shifted_df
 
-def unscale(y, scaler):
-    y_unscaled = y.copy()
-    y_unscaled['y'] = scaler.inverse_transform(y_unscaled['y'].values.reshape(-1, 1))
-    return y_unscaled
+
+def get_positions(pp, coins):
+    positions = pd.DataFrame()
+    for coin in coins:
+        candle = pd.read_feather(coin)
+        candle.set_index('time', inplace=True)
+        candle.index = candle.index.tz_localize(None)
+        positions = pd.concat([positions, pp.preprocess(candle)])
+    return positions
+
+def custom_split(pp, coins, problem, start_timestamp, split_timestamp, end_timestamp):
+    positions = get_positions(pp, coins)
+    y = positions.loc[:, ['down', 'same', 'up']]
+    x = positions.drop(['down', 'same', 'up'], axis=1)
+
+    if problem == 'pp': #turn everything after this into a func
+        sentiment = pd.read_csv('../Text/datasets/headline_sentiment_mean.csv', index_col='date', parse_dates=['date'])
+        sentiment_score = timeseries_to_supervised2(sentiment, lag=21)
+        sentiment_score.dropna(inplace=True)
+        sentiment_score.drop('sentiment_score_t', axis=1, inplace=True)
+        x2 = sentiment_score
+        x = x2.merge(x, left_index=True, right_on=pd.to_datetime(x.index.strftime('%Y-%m-%d')), how='right').dropna()
+        x.drop(columns='key_0', inplace=True)
+        # x = x.values.reshape((len(x), int(len(x.columns) / 2), 2), order='F')
+    # elif problem =='pe':
+    # x = positions.drop(['down', 'same', 'up'], axis=1)
+    # headline = pd.read_csv('../Text/datasets/headline_embeddings_mean.csv', index_col='date', parse_dates=['date'])
+    # x2 = HeadlinePreprocess.shape_vectors(headline, lag, y.index)
 
 
-def split(df):
-    y = df.loc[:, 'y']
-    x = df.drop('y', axis=1)
-    # print(x.columns)
-    y = pd.DataFrame(y)
-    # print(y.columns)
-    x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, shuffle=False)
-    return x_train, x_test, y_train, y_test
+    #what to do when I reshape with the indexes???
+    # if problem == 'p' or problem == 'pp':
+    x_train = x.loc[(start_timestamp <= x.index) & (x.index <= split_timestamp)]
+    y_train = y.loc[(start_timestamp <= y.index) & (y.index <= split_timestamp)]
+    x_test = x.loc[(split_timestamp < x.index) & (x.index <= end_timestamp)]
+    y_test = y.loc[(split_timestamp < y.index) & (y.index <= end_timestamp)]
+    if problem == 'pp':
+        x_train = x_train.values.reshape((len(x_train), int(len(x_train.columns) / 2), 2), order='F')
+        x_test = x_test.values.reshape((len(x_test), int(len(x_test.columns) / 2), 2), order='F')
+
+
+    # elif problem == 'pe':
+    #     x1_train, x1_test, y_train, y_test = train_test_split(x, y, test_size=0.2, shuffle=False)
+    #     x2_train, x2_test, _, _ = train_test_split(x2, y, test_size=0.2, shuffle=False)
+    #     del _
+    #     x_train = [x1_train, x2_train]
+    #     x_test = [x1_test, x2_test]
+
+    print(y_train.shape)
+    print(y_test.shape)
+    return x_train, y_train, x_test, y_test

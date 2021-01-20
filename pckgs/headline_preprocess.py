@@ -68,6 +68,7 @@ class HeadlinePreprocess:
         #daily to hourly repeated
         shifted = shifted.asfreq(freq='H', method='ffill')
         shifted = shifted.reindex(index)
+
         print(shifted.head())
         shifted = shifted.to_numpy()
         # shifted = shifted.reshape(shifted.shape[0], lag - 1, int(shifted.shape[1] / (lag - 1)), order='F')      #change order with timeseresi2222!!!!
