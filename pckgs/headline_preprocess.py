@@ -4,7 +4,7 @@ import string
 from gensim.models.phrases import Phrases
 from numpy import nan
 import pandas as pd
-from pckgs.helper import timeseries_to_supervised, timeseries_to_supervised2
+from pckgs.helper import timeseries_to_supervised2
 from nltk.tokenize import word_tokenize
 
 
@@ -64,6 +64,9 @@ class HeadlinePreprocess:
         shifted.drop(shifted.iloc[:,:768].columns, axis=1, inplace=True)
 
         shifted.dropna(inplace=True)
+
+        #daily to hourly repeated
+        shifted = shifted.asfreq(freq='H', method='ffill')
         shifted = shifted.reindex(index)
         print(shifted.head())
         shifted = shifted.to_numpy()

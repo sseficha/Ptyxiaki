@@ -8,7 +8,6 @@ from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
 from tensorflow.keras.models import load_model
 
 
-
 def get_model_both_sent():
     model = Sequential()
     model.add(LSTM(16, activation='relu', input_shape=(20, 2)))
@@ -50,7 +49,7 @@ def get_model_both_emb():
 
 def train_model(model, data, name, epochs=200, verbose=0):
     (x_train, x_test, y_train, y_test) = data
-    es = EarlyStopping(monitor='val_loss', mode='min', min_delta=0.01, verbose=verbose, patience=30)
+    es = EarlyStopping(monitor='val_loss', mode='min', min_delta=0.001, verbose=verbose, patience=30)
     mc = ModelCheckpoint(name, verbose=verbose, save_best_only=True)
     history = model.fit(x=x_train, y=y_train, validation_data=(x_test, y_test), batch_size=32,
                         epochs=epochs, verbose=verbose, callbacks=[es, mc])#, shuffle=False)
