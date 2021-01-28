@@ -2,8 +2,8 @@ import pandas as pd
 import datetime
 import seaborn as sb
 import matplotlib.pyplot as plt
-from pckgs.helper import timeseries_to_supervised2
-from sklearn.preprocessing import MinMaxScaler
+from pckgs.helper import reduce
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from math import exp
 
 class PricePreprocess:
@@ -22,6 +22,8 @@ class PricePreprocess:
 
     def preprocess(self, df):
         df = df.loc[:,['close']]
+        #smooth
+        df = df.rolling(7).mean().dropna()
         #resample
         if self.unit is not None:
             df = df.resample(self.unit).last()
@@ -30,18 +32,23 @@ class PricePreprocess:
         df['pChange'] = ((df.close / df.close.shift(1)) - 1) * 100
         df.drop(columns=['close'], inplace=True)
         #scale
-        scaler = MinMaxScaler(feature_range=(-1,1))
+        # scaler = MinMaxScaler(feature_range=(-1,1))
+        scaler = StandardScaler()
         df['pChange_scaled'] = scaler.fit_transform(df['pChange'].values.reshape(-1, 1))
+        # plt.figure()
+        # df['pChange_scaled'].hist(bins=20)
+        # plt.figure()
+        # df['pChange_scaled'].plot()
         # create shifted observations
-        df_lagged = timeseries_to_supervised2(pd.DataFrame(df['pChange_scaled']), lag=self.lag)
+        df_lagged = reduce(pd.DataFrame(df['pChange_scaled']), lag=self.lag)
         df_lagged.drop(columns=['pChange_scaled_t'], inplace=True)
         df = pd.concat([df, df_lagged], axis=1)
         df.drop(columns=['pChange_scaled'], inplace=True)
         df.dropna(inplace=True)
         # generate labels
         df['pChange'] = df['pChange'].apply(self.classify)
-        print('\n Value of observations: \n')
-        print(df['pChange'].value_counts())
+        # print('\n Value of observations: \n')
+        # print(df['pChange'].value_counts())
         # one hot encode
         df = pd.get_dummies(df, prefix='', prefix_sep='')
         return df

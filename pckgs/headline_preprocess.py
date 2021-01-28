@@ -4,7 +4,7 @@ import string
 from gensim.models.phrases import Phrases
 from numpy import nan
 import pandas as pd
-from pckgs.helper import timeseries_to_supervised2
+from pckgs.helper import reduce
 from nltk.tokenize import word_tokenize
 
 
@@ -54,13 +54,7 @@ class HeadlinePreprocess:
 
     @staticmethod
     def shape_vectors(df, lag, index):
-        # shifted = pd.DataFrame(index=df.index)
-        # for i in range(len(df.columns)):
-        #     temp = timeseries_to_supervised(df, str(i), lag)
-        #     temp.drop(str(i) + '_t', axis=1, inplace=True)  # drop same day
-        #     shifted = pd.concat([shifted, temp], axis=1)
-
-        shifted = timeseries_to_supervised2(df, lag)
+        shifted = reduce(df, lag)
         shifted.drop(shifted.iloc[:,:768].columns, axis=1, inplace=True)
 
         shifted.dropna(inplace=True)
@@ -71,8 +65,7 @@ class HeadlinePreprocess:
 
         print(shifted.head())
         shifted = shifted.to_numpy()
-        # shifted = shifted.reshape(shifted.shape[0], lag - 1, int(shifted.shape[1] / (lag - 1)), order='F')      #change order with timeseresi2222!!!!
-        shifted = shifted.reshape(shifted.shape[0], lag - 1, int(shifted.shape[1] / (lag - 1)))      #change order with timeseresi2222!!!!
+        shifted = shifted.reshape(shifted.shape[0], lag - 1, int(shifted.shape[1] / (lag - 1)))
         print(shifted.shape)
         return shifted
 

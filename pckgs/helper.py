@@ -1,10 +1,8 @@
 import pandas as pd
 from sklearn.model_selection import train_test_split
-from plotly import graph_objs as go
 from sklearn.metrics import confusion_matrix
 from seaborn import heatmap
 import numpy as np
-from scipy import spatial
 from gensim.test.utils import get_tmpfile
 from gensim.models.callbacks import CallbackAny2Vec
 from gensim.models.doc2vec import Doc2Vec
@@ -41,6 +39,8 @@ class EpochLogger(CallbackAny2Vec):
 # custom pnl callback to check on pnl
 from tensorflow.keras.callbacks import Callback
 from pckgs.evaluator import Evaluator
+
+
 class PnlCallback(Callback):
     def __init__(self, x_test, df_candle, patience, name):
         self.pnl = -9999
@@ -64,46 +64,25 @@ class PnlCallback(Callback):
         if pnl > self.pnl:
             self.pnl = pnl
             self.best_epoch = epoch
-            self.model.save(self.name+'.h5')
+            self.model.save(self.name + '.h5')
             self.patience = self.original_patience
             print('\n Pnl improved, current pnl is: ', self.pnl)
         else:
             self.patience -= 1
-        print('\n Pnl has not improved since ',self.best_epoch,' epoch')
+        print('\n Pnl has not improved since ', self.best_epoch, ' epoch')
         if self.patience <= 0:
             self.model.stop_training = True
             print('\n Reached ', epoch, 'nth epoch! \n')
             print('Pnl is: ', self.pnl)
 
 
-
-
-# get dataframe df and return a new dataframe with only the specified timeseries label shifted for specified lags
-# def timeseries_to_supervised(df, label, lag=1, goal=None):
-#     df_sup = df.copy()
-#     df_sup = df_sup.drop([i for i in df_sup.columns if i != label], axis=1)
-#     df = pd.DataFrame(df[label])
-#     for i in range(1, lag, 1):
-#     # for i in range(lag-1, 0, -1):
-#         temp = df.shift(i)
-#         string = label + '_t-' + str(i)  # changed from t to _t
-#         temp = temp.rename(columns={label: string})
-#         df_sup = pd.concat([df_sup, temp], axis=1)
-#     df_sup = df_sup.rename(columns={label: label + '_t'})  # changed from t to _t
-#     # goal
-#     if goal is not None:
-#         temp = df.shift(-goal)
-#         temp = temp.rename(columns={label: 'y'})
-#         df_sup = pd.concat([df_sup, temp], axis=1)
-#     return df_sup
-
-def timeseries_to_supervised2(df, lag):
+def reduce(df, lag):
     shifted_df = df.copy()
     shifted_df.columns = [str(col) + '_t' for col in shifted_df.columns]
     for i in range(1, lag):
         shifted = df.shift(i)
         shifted.columns = [str(col) + '_t-' + str(i) for col in shifted.columns]
-        shifted_df = pd.concat([shifted_df, shifted],axis=1)
+        shifted_df = pd.concat([shifted_df, shifted], axis=1)
     return shifted_df
 
 
@@ -116,27 +95,29 @@ def get_positions(pp, coins):
         positions = pd.concat([positions, pp.preprocess(candle)])
     return positions
 
-def custom_split(pp, coins, problem, start_timestamp, split_timestamp, end_timestamp):
-    positions = get_positions(pp, coins)
+
+# def custom_split(pp, coins, problem, start_timestamp, split_timestamp, end_timestamp):
+def custom_split(positions, problem, start_timestamp, split_timestamp, end_timestamp):
     y = positions.loc[:, ['down', 'same', 'up']]
     x = positions.drop(['down', 'same', 'up'], axis=1)
 
-    if problem == 'pp': #turn everything after this into a func
+    if problem == 'pp':  # add sentiment
         sentiment = pd.read_csv('../Text/datasets/headline_sentiment_mean.csv', index_col='date', parse_dates=['date'])
-        sentiment_score = timeseries_to_supervised2(sentiment, lag=21)
+        sentiment_score = reduce(sentiment, lag=21)
         sentiment_score.dropna(inplace=True)
         sentiment_score.drop('sentiment_score_t', axis=1, inplace=True)
         x2 = sentiment_score
-        x = x2.merge(x, left_index=True, right_on=pd.to_datetime(x.index.strftime('%Y-%m-%d')), how='right').dropna()
-        x.drop(columns='key_0', inplace=True)
-        # x = x.values.reshape((len(x), int(len(x.columns) / 2), 2), order='F')
+        # #hourly
+        # x = x2.merge(x, left_index=True, right_on=pd.to_datetime(x.index.strftime('%Y-%m-%d')), how='right').dropna()
+        # x.drop(columns='key_0', inplace=True)
+        # daily
+        x = x2.merge(x, left_index=True, right_index=True, how='right').dropna()
+
     # elif problem =='pe':
     # x = positions.drop(['down', 'same', 'up'], axis=1)
     # headline = pd.read_csv('../Text/datasets/headline_embeddings_mean.csv', index_col='date', parse_dates=['date'])
     # x2 = HeadlinePreprocess.shape_vectors(headline, lag, y.index)
 
-
-    #what to do when I reshape with the indexes???
     # if problem == 'p' or problem == 'pp':
     x_train = x.loc[(start_timestamp <= x.index) & (x.index <= split_timestamp)]
     y_train = y.loc[(start_timestamp <= y.index) & (y.index <= split_timestamp)]
@@ -145,7 +126,6 @@ def custom_split(pp, coins, problem, start_timestamp, split_timestamp, end_times
     if problem == 'pp':
         x_train = x_train.values.reshape((len(x_train), int(len(x_train.columns) / 2), 2), order='F')
         x_test = x_test.values.reshape((len(x_test), int(len(x_test.columns) / 2), 2), order='F')
-
 
     # elif problem == 'pe':
     #     x1_train, x1_test, y_train, y_test = train_test_split(x, y, test_size=0.2, shuffle=False)

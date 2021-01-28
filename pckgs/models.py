@@ -15,17 +15,27 @@ def get_model_both_sent():
     model.compile(loss='categorical_crossentropy', metrics=['accuracy'], optimizer=Adam(learning_rate=1e-3))
     # print(model.summary())
     return model
-    # plot_model(model, "my_first_model.png")
 
-def get_model_price():
+def get_model_price_mlp():
     model = Sequential()
-    model.add(Reshape((20, 1), input_shape=(20,)))
-    model.add(LSTM(16, activation='relu'))
+    # model.add(Dense(2000, activation='relu'))
+    model.add(Dense(32, activation='relu'))
+    model.add(Dense(32, activation='relu'))
     model.add(Dense(3, activation='softmax'))
     model.compile(loss='categorical_crossentropy', metrics=['accuracy'], optimizer=Adam(learning_rate=1e-3))
     # print(model.summary())
     return model
 
+def get_model_price_lstm():
+
+    model = Sequential()
+    model.add(Reshape((20, 1), input_shape=(20,)))
+    model.add(LSTM(32, activation='relu', return_sequences=True))
+    model.add(LSTM(32, activation='relu'))
+    model.add(Dense(3, activation='softmax'))
+    model.compile(loss='categorical_crossentropy', metrics=['accuracy'], optimizer=Adam(learning_rate=1e-3))
+    # print(model.summary())
+    return model
 
 def get_model_both_emb():
     model1 = Sequential()
@@ -49,7 +59,8 @@ def get_model_both_emb():
 
 def train_model(model, data, name, epochs=200, verbose=0):
     (x_train, x_test, y_train, y_test) = data
-    es = EarlyStopping(monitor='val_loss', mode='min', min_delta=0.001, verbose=verbose, patience=20)
+    # es = EarlyStopping(monitor='val_loss', mode='min', min_delta=0.001, verbose=verbose, patience=20)
+    es = EarlyStopping(monitor='val_loss', mode='min', min_delta=0.001, verbose=verbose, patience=2000)
     mc = ModelCheckpoint(name, verbose=verbose, save_best_only=True)
     history = model.fit(x=x_train, y=y_train, validation_data=(x_test, y_test), batch_size=64,
                         epochs=epochs, verbose=verbose, callbacks=[es, mc])#, shuffle=False)

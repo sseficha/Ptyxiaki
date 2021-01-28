@@ -13,11 +13,10 @@ class Evaluator:
 
     @staticmethod #return unrealised pnl
     def get_pnl(y_pred, df_candle):
-        pnl = pnl_from_positions(df_candle, y_pred, commission=0.0025)
+        pnl = pnl_from_positions(df_candle, y_pred, commission=0.0)
         pnl = pnl.cumsum()
         return pnl
 
-    # @staticmethod get_pnl_plot(y_pred, y_test, df_candle, force=False):
 
 
     @staticmethod
