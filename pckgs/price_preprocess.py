@@ -6,9 +6,9 @@ from pckgs.helper import reduce
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from math import exp
 
+
 class PricePreprocess:
-    def __init__(self, lag, threshold, unit=None):
-        self.unit = unit
+    def __init__(self, lag, threshold):
         self.lag = lag
         self.threshold = threshold
 
@@ -20,37 +20,39 @@ class PricePreprocess:
         else:
             return 'same'
 
+    def soft_labels(self, labels, factor=0.2):
+        print(labels)
+        labels = labels * (1-factor)
+        labels += (factor / labels.shape[1])
+        return labels
+
+
     def preprocess(self, df):
-        df = df.loc[:,['close']]
-        #smooth
-        df = df.rolling(7).mean().dropna()
-        #resample
-        if self.unit is not None:
-            df = df.resample(self.unit).last()
-            df.close.fillna(method='ffill', inplace=True)
-        #percentage change
+        df = df.loc[:, ['close']]
+        # percentage change
         df['pChange'] = ((df.close / df.close.shift(1)) - 1) * 100
         df.drop(columns=['close'], inplace=True)
-        #scale
-        # scaler = MinMaxScaler(feature_range=(-1,1))
+        # generate labels
+        df['labels'] = df['pChange'].apply(self.classify)
+        # one hot encode
+        df = pd.get_dummies(df, prefix='', prefix_sep='')
+        #smooth
+        # df['pChange'] = df['pChange'].rolling(7).mean().dropna()
+        # df['pChange'] = df['pChange'].ewm(span=7).mean()
+        # scale
         scaler = StandardScaler()
         df['pChange_scaled'] = scaler.fit_transform(df['pChange'].values.reshape(-1, 1))
-        # plt.figure()
-        # df['pChange_scaled'].hist(bins=20)
-        # plt.figure()
-        # df['pChange_scaled'].plot()
+        # clip
+        df['pChange_scaled'] = df['pChange_scaled'].map(lambda x: 6 if x > 6 else -6 if x < -6 else x)
         # create shifted observations
         df_lagged = reduce(pd.DataFrame(df['pChange_scaled']), lag=self.lag)
         df_lagged.drop(columns=['pChange_scaled_t'], inplace=True)
         df = pd.concat([df, df_lagged], axis=1)
         df.drop(columns=['pChange_scaled'], inplace=True)
+
+        df.drop(columns=['pChange'], inplace=True)
+        # print(df['labels'].value_counts())
         df.dropna(inplace=True)
-        # generate labels
-        df['pChange'] = df['pChange'].apply(self.classify)
-        # print('\n Value of observations: \n')
-        # print(df['pChange'].value_counts())
-        # one hot encode
-        df = pd.get_dummies(df, prefix='', prefix_sep='')
         return df
 
 
@@ -66,4 +68,3 @@ class CandlePreprocess:
         df_close = df.Close.resample(self.unit).last().ffill()
         df = pd.concat([df_open, df_high, df_low, df_close], axis=1)
         return df
-

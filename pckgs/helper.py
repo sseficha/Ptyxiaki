@@ -6,6 +6,9 @@ import numpy as np
 from gensim.test.utils import get_tmpfile
 from gensim.models.callbacks import CallbackAny2Vec
 from gensim.models.doc2vec import Doc2Vec
+from tensorflow.keras.models import load_model
+from tensorflow.keras.callbacks import Callback
+from pckgs.evaluator import Evaluator
 
 
 # custom callback for doc2vec training
@@ -36,44 +39,61 @@ class EpochLogger(CallbackAny2Vec):
         self.epoch += 1
 
 
-# custom pnl callback to check on pnl
-from tensorflow.keras.callbacks import Callback
-from pckgs.evaluator import Evaluator
 
+import os
 
-class PnlCallback(Callback):
-    def __init__(self, x_test, df_candle, patience, name):
-        self.pnl = -9999
-        self.best_epoch = 0
-        self.patience = patience
-        self.original_patience = patience
-        self.x_test = x_test
-        self.df_candle = df_candle
-        self.name = name
-        self.stats = []
+class ModelSave(Callback):
+    def __init__(self, pathname):
+        self.pathname = pathname
 
     def on_epoch_end(self, epoch, logs=None):
-        # if epoch % 10 == 0:
+        print(self.pathname)
+        try:
+            os.makedirs(self.pathname)
+        except OSError:
+            pass
+
+
+# custom pnl callback to check on pnl
+class PnlCallback(Callback):
+    def __init__(self, x_test, test_candle, x_train, train_candle, pathname_model):
+        self.pnl = -9999
+        self.x_test = x_test
+        self.test_candle = test_candle
+        self.x_train = x_train
+        self.train_candle = train_candle
+        self.stats_test = []
+        self.stats_train = []
+        self.pnls_train = {}
+        self.pnls_test = {}
+        self.pathname_model = pathname_model
+
+
+    def on_epoch_end(self, epoch, logs=None):
         y_pred = self.model.predict(self.x_test)
-        y_pred_labeled = pd.DataFrame(y_pred, columns=[-1, 0, 1], index=self.df_candle.index)
+        y_pred_labeled = pd.DataFrame(y_pred, columns=[-1, 0, 1], index=self.test_candle.index)
         y_pred_labeled = y_pred_labeled.idxmax(axis=1)
-        pnl = Evaluator.get_pnl(y_pred_labeled, self.df_candle)
+        pnl = Evaluator.get_pnl(y_pred_labeled, self.test_candle)
+        if epoch % 150 == 0 and epoch != 0:
+            self.pnls_test[epoch] = pnl
         pnl = pnl.iloc[len(pnl) - 1]
-        self.stats.append(pnl)
-        # if pnl greater then set new pnl, save model
+        self.stats_test.append(pnl)
+
         if pnl > self.pnl:
             self.pnl = pnl
-            self.best_epoch = epoch
-            self.model.save(self.name + '.h5')
-            self.patience = self.original_patience
-            print('\n Pnl improved, current pnl is: ', self.pnl)
-        else:
-            self.patience -= 1
-        print('\n Pnl has not improved since ', self.best_epoch, ' epoch')
-        if self.patience <= 0:
-            self.model.stop_training = True
-            print('\n Reached ', epoch, 'nth epoch! \n')
-            print('Pnl is: ', self.pnl)
+            self.model.save(self.pathname_model)
+
+
+
+        y_pred = self.model.predict(self.x_train)
+        y_pred_labeled = pd.DataFrame(y_pred, columns=[-1, 0, 1], index=self.train_candle.index)
+        y_pred_labeled = y_pred_labeled.idxmax(axis=1)
+        pnl = Evaluator.get_pnl(y_pred_labeled, self.train_candle)
+        if epoch % 150 == 0 and epoch != 0:
+            self.pnls_train[epoch] = pnl
+        pnl = pnl.iloc[len(pnl) - 1]
+        self.stats_train.append(pnl)
+
 
 
 def reduce(df, lag):

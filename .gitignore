@@ -8,6 +8,7 @@ sample_data/
 **/finBERT_repo
 *.csv
 *.log
+*.png
 *.h5
 *.kv
 *.npy
